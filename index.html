@@ -1,813 +1,487 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>스마트 재고 및 대여 관리 시스템</title>
-  
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  
-  <!-- FontAwesome Icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  
-  <!-- Flatpickr (Calendar CSS & JS) -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-  <link rel="stylesheet" href="https://npmcdn.com/flatpickr/dist/themes/airbnb.css">
-  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-  <script src="https://npmcdn.com/flatpickr/dist/l10n/ko.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>장비 및 재고 관리 시스템</title>
+    <style>
+        :root {
+            --primary-color: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg-color: #f3f4f6;
+            --card-bg: #ffffff;
+            --text-color: #1f2937;
+            --border-color: #e5e7eb;
+            --success-color: #10b981;
+            --danger-color: #ef4444;
+        }
 
-  <!-- Firebase SDKs (v9 Compat) -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: var(--card-bg);
+            padding: 20px 30px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .badge {
+            background-color: #e0e7ff;
+            color: var(--primary-color);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .badge.admin {
+            background-color: #fee2e2;
+            color: #dc2626;
+        }
+
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .btn-secondary { background-color: #6b7280; }
+        .btn-secondary:hover { background-color: #4b5563; }
+        
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 25px;
+        }
+
+        h2 {
+            margin-bottom: 15px;
+            font-size: 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 14px;
+        }
+
+        th {
+            background-color: #f9fafb;
+            font-weight: 600;
+        }
+
+        .status {
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .status.active { background-color: #d1fae5; color: #065f46; }
+        .status.returned { background-color: #f3f4f6; color: #374151; }
+        .status.out-of-stock { background-color: #fee2e2; color: #991b1b; }
+
+        .auth-container {
+            max-width: 400px;
+            margin: 100px auto;
+            text-align: center;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+            text-align: left;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 9px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .admin-only {
+            display: none;
+        }
+    </style>
 </head>
-<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col">
+<body>
 
-  <!-- Header -->
-  <header class="bg-indigo-600 text-white shadow-lg sticky top-0 z-40">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
-      <div class="flex items-center gap-2">
-        <i class="fa-solid fa-boxes-stacked text-2xl text-indigo-200"></i>
-        <h1 class="text-xl font-bold tracking-tight">재고·대여 관리 시스템</h1>
-      </div>
-      <div id="authNav" class="flex items-center gap-2">
-        <div class="bg-indigo-700/60 p-1 rounded-lg flex text-xs sm:text-sm font-medium">
-          <button id="btnRoleUser" onclick="switchRole('user')" class="px-3 py-1.5 rounded-md bg-white text-indigo-600 font-bold shadow-sm transition">사용자</button>
-          <button id="btnRoleAdmin" onclick="switchRole('admin')" class="px-3 py-1.5 rounded-md text-indigo-100 hover:text-white transition">관리자</button>
-        </div>
-        <div id="userInfo" class="hidden items-center gap-2 ml-2">
-          <span id="userName" class="text-xs bg-indigo-800 px-2.5 py-1 rounded-full hidden sm:inline-block font-medium"></span>
-          <button onclick="handleLogout()" class="bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-1.5 rounded-md transition font-medium">로그아웃</button>
-        </div>
-      </div>
-    </div>
-  </header>
-
-  <!-- Login Overlay Section -->
-  <div id="loginSection" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm text-center">
-      <div class="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
-        <i class="fa-solid fa-lock"></i>
-      </div>
-      <h2 class="text-2xl font-bold text-slate-800 mb-2">로그인 필요</h2>
-      <p class="text-slate-500 text-sm mb-6">시스템 이용을 위해 Google 계정으로 로그인해 주세요.</p>
-      <button onclick="handleGoogleLogin()" class="w-full bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold py-3 px-4 rounded-xl shadow-sm transition flex items-center justify-center gap-3">
-        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-5 h-5" alt="Google">
-        Google 계정으로 로그인
-      </button>
-    </div>
-  </div>
-
-  <!-- Main Content Area -->
-  <main class="flex-grow max-w-7xl w-full mx-auto px-4 py-6">
-    <!-- Admin Controls -->
-    <div id="adminControls" class="hidden justify-between items-center mb-6 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-      <div class="flex items-center gap-2 text-slate-700 font-semibold">
-        <i class="fa-solid fa-user-shield text-indigo-600"></i>
-        <span>관리자 모드</span>
-      </div>
-      <button onclick="openAddModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 shadow transition">
-        <i class="fa-solid fa-plus"></i> 신규 자재 등록
-      </button>
+<div class="container">
+    <!-- 로그인 화면 -->
+    <div id="login-section" class="card auth-container">
+        <h2>로그인</h2>
+        <form id="login-form">
+            <div class="input-group">
+                <label for="email">이메일 계정</label>
+                <input type="email" id="email" placeholder="example@email.com" required>
+            </div>
+            <button type="submit" style="width: 100%;">로그인</button>
+        </form>
     </div>
 
-    <!-- Inventory Cards Section -->
-    <section class="mb-10">
-      <div class="flex justify-between items-center mb-4">
-        <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
-          <i class="fa-solid fa-cubes text-indigo-600"></i> 자재 목록
-        </h2>
-        <span id="itemCount" class="text-xs text-slate-500 font-medium">총 0개 항목</span>
-      </div>
-      
-      <!-- PC 5개, 모바일 2~3개 레이아웃 -->
-      <div id="inventoryGrid" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
-        <!-- JS로 자재 카드가 생성됩니다 -->
-      </div>
-    </section>
+    <!-- 메인 대시보드 화면 -->
+    <div id="main-section" style="display: none;">
+        <header>
+            <div>
+                <h1>장비 대여 및 재고 관리</h1>
+            </div>
+            <div class="user-info">
+                <span id="user-display"></span>
+                <span id="role-badge" class="badge">일반 사용자</span>
+                <button onclick="logout()" class="btn-secondary">로그아웃</button>
+            </div>
+        </header>
 
-    <!-- User Rental Status Section -->
-    <section id="userRentalSection" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
-      <h2 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-        <i class="fa-solid fa-clock-rotate-left text-indigo-600"></i> 나의 대여 현황
-      </h2>
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm text-left text-slate-600">
-          <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b">
-            <tr>
-              <th class="px-4 py-3">자재명</th>
-              <th class="px-4 py-3">대여 수량</th>
-              <th class="px-4 py-3">대여 기간</th>
-              <th class="px-4 py-3">입금 상태</th> <!-- 2번 요구사항 반영 -->
-              <th class="px-4 py-3">대여 상태</th>
-              <th class="px-4 py-3 text-right">관리</th>
-            </tr>
-          </thead>
-          <tbody id="userRentalList" class="divide-y divide-slate-100">
-            <!-- JS로 대여 항목이 생성됩니다 -->
-          </tbody>
-        </table>
-      </div>
-    </section>
-  </main>
-
-  <!-- Add/Edit Item Modal -->
-  <div id="itemModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
-      <div class="flex justify-between items-center mb-4 pb-2 border-b">
-        <h3 id="modalTitle" class="text-lg font-bold text-slate-800">자재 등록</h3>
-        <button onclick="closeModal('itemModal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
-      </div>
-      
-      <form onsubmit="handleItemSubmit(event)" class="space-y-4">
-        <input type="hidden" id="editDocId">
-        <input type="hidden" id="itemBase64Photo">
-        
-        <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-2">
-          <input type="checkbox" id="itemIsNotice" class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
-          <label for="itemIsNotice" class="text-xs font-bold text-amber-800 cursor-pointer flex items-center gap-1">
-            <i class="fa-solid fa-bullhorn text-amber-600"></i> 공지사항으로 등록 (로그인 시 팝업 노출)
-          </label>
+        <!-- [관리자 전용] 재고 등록 폼 -->
+        <div id="inventory-form-card" class="card admin-only">
+            <h2>신규 재고 등록</h2>
+            <form id="add-inventory-form" class="form-grid">
+                <div class="input-group">
+                    <input type="text" id="item-name" placeholder="장비명" required>
+                </div>
+                <div class="input-group">
+                    <input type="text" id="item-category" placeholder="카테고리 (예: 노트북, 모니터)" required>
+                </div>
+                <div class="input-group">
+                    <input type="number" id="item-qty" placeholder="수량" min="1" value="1" required>
+                </div>
+                <div>
+                    <button type="submit" style="height: 38px; width: 100%;">등록하기</button>
+                </div>
+            </form>
         </div>
 
-        <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">자재명 (공지 제목)</label>
-          <input type="text" id="itemName" required class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+        <!-- 전체 재고 목록 현황 -->
+        <div class="card">
+            <h2>장비 및 보유 재고 목록</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>카테고리</th>
+                        <th>장비명</th>
+                        <th>보유 수량</th>
+                        <th>대여 가능</th>
+                        <th>대여 신청</th>
+                    </tr>
+                </thead>
+                <tbody id="inventory-list">
+                    <!-- JS에서 데이터 삽입 -->
+                </tbody>
+            </table>
         </div>
 
-        <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">자재 설명 (공지 내용)</label>
-          <textarea id="itemDescription" rows="3" placeholder="자재 상세 정보나 공지 사항 내용을 적어주세요." class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
+        <!-- 대여 현황 섹션 (사용자/관리자에 따라 동적 로드) -->
+        <div class="card">
+            <h2 id="table-title">대여 현황</h2>
+            <table>
+                <thead>
+                    <tr id="table-header">
+                        <!-- JS에서 동적으로 헤더 삽입 -->
+                    </tr>
+                </thead>
+                <tbody id="rental-list">
+                    <!-- JS에서 데이터 삽입 -->
+                </tbody>
+            </table>
         </div>
-
-        <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">사진 업로드 (Base64 변환)</label>
-          <input type="file" id="itemPhotoFile" accept="image/*" onchange="previewAndConvertImage()" class="w-full px-3 py-1.5 border border-slate-300 rounded-xl text-sm text-slate-500 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
-          <div class="mt-2 text-center">
-            <img id="imgPreview" class="h-32 mx-auto object-cover rounded-xl border border-slate-200 hidden" alt="미리보기">
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">위치</label>
-            <input type="text" id="itemLocation" required placeholder="예: A동 101호" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">전체 수량</label>
-            <input type="number" id="itemQty" required min="1" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-          </div>
-        </div>
-
-        <div class="flex justify-end gap-2 pt-3 border-t">
-          <button type="button" onclick="closeModal('itemModal')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm font-semibold transition">취소</button>
-          <button type="submit" id="btnSaveItem" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold shadow transition">저장</button>
-        </div>
-      </form>
     </div>
-  </div>
+</div>
 
-  <!-- Rental Modal -->
-  <div id="rentalModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
-      <div class="flex justify-between items-center mb-4 pb-2 border-b">
-        <h3 class="text-lg font-bold text-slate-800">자재 대여 신청</h3>
-        <button onclick="closeModal('rentalModal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
-      </div>
+<script>
+    const ADMIN_EMAIL = "migosachuk79@gmail.com";
 
-      <form onsubmit="handleRentalSubmit(event)" class="space-y-4">
-        <input type="hidden" id="rentalDocId">
-        
-        <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">대여 자재</label>
-          <input type="text" id="rentalItemName" readonly class="w-full px-3 py-2 bg-slate-100 border border-slate-300 rounded-xl text-sm font-semibold text-slate-700">
-        </div>
-
-        <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">대여 수량 (가능: <span id="maxRentQty" class="text-indigo-600 font-bold">0</span>개)</label>
-          <input type="number" id="rentalQty" min="1" value="1" required class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-        </div>
-
-        <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">대여 기간 선택</label>
-          <input type="text" id="rentalDates" required placeholder="날짜 범위를 선택하세요" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-        </div>
-
-        <div class="flex justify-end gap-2 pt-3 border-t">
-          <button type="button" onclick="closeModal('rentalModal')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm font-semibold transition">취소</button>
-          <button type="submit" id="btnConfirmRental" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold shadow transition">신청 확정</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Notice Modal -->
-  <div id="noticeModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col">
-      <div class="bg-indigo-600 text-white p-4 flex justify-between items-center">
-        <div class="flex items-center gap-2">
-          <i class="fa-solid fa-bullhorn text-amber-300 animate-bounce"></i>
-          <h3 class="font-bold text-lg">공지사항</h3>
-        </div>
-        <button onclick="closeNoticeModal()" class="text-indigo-200 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
-      </div>
-      
-      <div class="p-6 space-y-4 overflow-y-auto max-h-[60vh]">
-        <h4 id="noticeTitle" class="text-xl font-bold text-slate-800 border-b pb-2"></h4>
-        <div id="noticeImgContainer" class="hidden">
-          <img id="noticeImg" class="w-full max-h-60 object-cover rounded-xl border border-slate-200 shadow-sm" alt="공지 이미지">
-        </div>
-        <div id="noticeContent" class="text-sm text-slate-600 whitespace-pre-line leading-relaxed min-h-[60px]"></div>
-      </div>
-
-      <div class="bg-slate-50 p-4 border-t flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
-        <label class="flex items-center gap-2 cursor-pointer font-medium select-none">
-          <input type="checkbox" id="chkHideWeek" class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
-          <span>일주일 동안 보지 않기</span>
-        </label>
-        <button onclick="closeNoticeModal()" class="w-full sm:w-auto px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold shadow transition">
-          닫기
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    // 3번 요구사항 반영: 관리자 이메일 목록 설정 (필요 시 원하는 이메일을 추가하세요)
-    const ADMIN_EMAILS = [
-      "migosachuk79@gmail.com",
-      "" // 테스트용 관리자 이메일
+    // 보유 재고 데이터
+    let inventoryData = [
+        { id: 101, category: "노트북", name: "MacBook Pro 16인치", totalQty: 5, availableQty: 4 },
+        { id: 102, category: "모니터", name: "Dell 27인치 모니터", totalQty: 3, availableQty: 2 },
+        { id: 103, category: "태블릿", name: "iPad Pro 11인치", totalQty: 2, availableQty: 2 },
+        { id: 104, category: "주변기기", name: "로지텍 MX Master 3S", totalQty: 10, availableQty: 9 }
     ];
 
-    // Firebase Config
-    const firebaseConfig = {
-      apiKey: "AIzaSyD3-3njuR5NBTLuo4qF7Xr9vgvW7ReSvi0",
-      authDomain: "yunsul-edu.firebaseapp.com",
-      projectId: "yunsul-edu",
-      storageBucket: "yunsul-edu.firebasestorage.app",
-      messagingSenderId: "246128654335",
-      appId: "1:246128654335:web:465e9fa0450a43bce799ca",
-      measurementId: "G-SC67GVEWXZ"
-    };
+    // 대여 기록 데이터
+    let rentalData = [
+        { id: 1, user: "user1@example.com", itemId: 101, item: "MacBook Pro 16인치", date: "2026-08-01", status: "대여 중" },
+        { id: 2, user: "migosachuk79@gmail.com", itemId: 102, item: "Dell 27인치 모니터", date: "2026-08-03", status: "대여 중" },
+        { id: 3, user: "user2@example.com", itemId: 103, item: "iPad Pro 11인치", date: "2026-07-25", status: "반납 완료" },
+        { id: 4, user: "user3@example.com", itemId: 104, item: "로지텍 MX Master 3S", date: "2026-08-05", status: "대여 중" }
+    ];
 
-    if (!firebase.apps.length) {
-      firebase.initializeApp(firebaseConfig);
-    }
+    let currentUser = localStorage.getItem("loggedInUser");
 
-    const auth = firebase.auth();
-    const db = firebase.firestore();
-
-    let currentUser = null;
-    let currentRole = 'user'; // 'user' or 'admin'
-    let inventoryData = [];
-    let datePickerInstance = null;
-    let currentNotice = null;
-
-    // 페이지 로드 시 인증 감지 및 Flatpickr 설정
-    window.addEventListener('DOMContentLoaded', () => {
-      auth.onAuthStateChanged((user) => {
-        if (user) {
-          currentUser = user;
-          document.getElementById('loginSection').classList.add('hidden');
-          document.getElementById('userInfo').classList.remove('hidden');
-          document.getElementById('userInfo').classList.add('flex');
-          document.getElementById('userName').innerText = user.displayName || user.email;
-          loadInventory();
+    // 초기화
+    document.addEventListener("DOMContentLoaded", () => {
+        if (currentUser) {
+            showDashboard();
         } else {
-          currentUser = null;
-          document.getElementById('loginSection').classList.remove('hidden');
-          document.getElementById('userInfo').classList.add('hidden');
+            showLogin();
         }
-      });
-
-      // Flatpickr 설정 (이전 오류 해결 반영)
-      datePickerInstance = flatpickr("#rentalDates", {
-        mode: "range",
-        minDate: "today",
-        locale: "ko",
-        dateFormat: "Y-m-d",
-        onChange: function(selectedDates, dateStr) {
-          document.getElementById('rentalDates').value = dateStr;
-        }
-      });
     });
 
-    // Google 로그인
-    function handleGoogleLogin() {
-      const provider = new firebase.auth.GoogleAuthProvider();
-      auth.signInWithPopup(provider).catch((error) => {
-        alert("로그인 실패: " + error.message);
-      });
-    }
-
-    function handleLogout() {
-      auth.signOut();
-    }
-
-    // 3번 요구사항 반영: 관리자 역할 전환 제어
-    function switchRole(role) {
-      if (role === 'admin') {
-        if (!currentUser) {
-          alert("로그인이 필요합니다.");
-          return;
+    // 로그인
+    document.getElementById("login-form").addEventListener("submit", (e) => {
+        e.preventDefault();
+        const emailInput = document.getElementById("email").value.trim();
+        if (emailInput) {
+            currentUser = emailInput;
+            localStorage.setItem("loggedInUser", currentUser);
+            showDashboard();
         }
-        // 관리자 이메일 검증
-        if (!ADMIN_EMAILS.includes(currentUser.email)) {
-          alert("관리자 권한이 없는 계정입니다. (" + currentUser.email + ")");
-          return;
-        }
-      }
+    });
 
-      currentRole = role;
-      const btnUser = document.getElementById('btnRoleUser');
-      const btnAdmin = document.getElementById('btnRoleAdmin');
-      const adminControls = document.getElementById('adminControls');
-
-      if (role === 'admin') {
-        btnAdmin.className = "px-3 py-1.5 rounded-md bg-white text-indigo-600 font-bold shadow-sm transition";
-        btnUser.className = "px-3 py-1.5 rounded-md text-indigo-100 hover:text-white transition";
-        adminControls.classList.remove('hidden');
-        adminControls.classList.add('flex');
-      } else {
-        btnUser.className = "px-3 py-1.5 rounded-md bg-white text-indigo-600 font-bold shadow-sm transition";
-        btnAdmin.className = "px-3 py-1.5 rounded-md text-indigo-100 hover:text-white transition";
-        adminControls.classList.add('hidden');
-        adminControls.classList.remove('flex');
-      }
-      renderInventory();
+    // 로그아웃
+    function logout() {
+        localStorage.removeItem("loggedInUser");
+        currentUser = null;
+        showLogin();
     }
 
-    // 이미지 미리보기 및 Base64 변환
-    function previewAndConvertImage() {
-      const fileInput = document.getElementById('itemPhotoFile');
-      const previewImg = document.getElementById('imgPreview');
-      const base64Input = document.getElementById('itemBase64Photo');
-
-      if (fileInput.files && fileInput.files[0]) {
-        const file = fileInput.files[0];
-        const reader = new FileReader();
-        reader.onload = function (e) {
-          base64Input.value = e.target.result;
-          previewImg.src = e.target.result;
-          previewImg.classList.remove('hidden');
-        };
-        reader.readAsDataURL(file);
-      }
+    function showLogin() {
+        document.getElementById("login-section").style.display = "block";
+        document.getElementById("main-section").style.display = "none";
     }
 
-    // 데이터 실시간 로드
-    function loadInventory() {
-      db.collection("inventory").onSnapshot((snapshot) => {
-        inventoryData = [];
-        snapshot.forEach((doc) => {
-          inventoryData.push({ id: doc.id, ...doc.data() });
-        });
-        renderInventory();
-        renderUserRentals();
-        checkAndShowNoticePopup();
-      }, (error) => {
-        console.error("데이터 로드 오류: ", error);
-      });
-    }
+    function showDashboard() {
+        document.getElementById("login-section").style.display = "none";
+        document.getElementById("main-section").style.display = "block";
 
-    // 1번 요구사항 반영: 재고 Grid 그리기 및 대여자 목록, 입금 전환, 삭제 버튼 복원
-    function renderInventory() {
-      const grid = document.getElementById('inventoryGrid');
-      grid.innerHTML = '';
-      document.getElementById('itemCount').innerText = `총 ${inventoryData.length}개 항목`;
+        const userDisplay = document.getElementById("user-display");
+        const roleBadge = document.getElementById("role-badge");
+        const isAdmin = currentUser === ADMIN_EMAIL;
 
-      inventoryData.forEach((item) => {
-        const rentals = item.rentals || [];
-        const activeRentals = rentals.filter(r => r.status === 'active');
-        const rentedQty = activeRentals.reduce((sum, r) => sum + r.qty, 0);
-        const availableQty = item.qty - rentedQty;
+        userDisplay.textContent = currentUser;
 
-        const defaultImg = 'https://via.placeholder.com/300x200?text=No+Image';
-        const photoSrc = item.photo || defaultImg;
+        // 관리자 전용 UI 요소 표시 제어
+        const adminElements = document.querySelectorAll('.admin-only');
+        adminElements.forEach(el => el.style.display = isAdmin ? 'block' : 'none');
 
-        // 대여자 목록 HTML 생성 (관리자 모드 전용)
-        let rentalsHtml = '';
-        if (currentRole === 'admin') {
-          if (activeRentals.length > 0) {
-            rentalsHtml = `
-              <div class="mt-3 pt-2 border-t border-slate-200">
-                <div class="text-[11px] font-bold text-slate-700 mb-1 flex items-center gap-1">
-                  <i class="fa-solid fa-users text-indigo-500"></i> 대여자 목록 (${activeRentals.length}명)
-                </div>
-                <div class="space-y-1.5 max-h-32 overflow-y-auto pr-1">
-                  ${activeRentals.map(r => `
-                    <div class="bg-slate-50 p-1.5 rounded border border-slate-200 text-[10px] space-y-1">
-                      <div class="flex justify-between items-center">
-                        <span class="font-bold text-slate-800">${r.userName} (${r.qty}개)</span>
-                        <div class="flex items-center gap-1">
-                          <!-- 입금/미입금 전환 버튼 -->
-                          <button onclick="togglePayment('${item.id}', '${r.rentalId}', ${!r.isPaid})" class="px-1.5 py-0.5 rounded text-[9px] font-bold transition ${
-                            r.isPaid ? 'bg-emerald-100 text-emerald-700 border border-emerald-300' : 'bg-rose-100 text-rose-700 border border-rose-300'
-                          }">
-                            ${r.isPaid ? '입금완료' : '미입금'}
-                          </button>
-                          <!-- 대여자 삭제 버튼 -->
-                          <button onclick="deleteRental('${item.id}', '${r.rentalId}')" class="text-slate-400 hover:text-rose-600 px-1">
-                            <i class="fa-solid fa-trash-can"></i>
-                          </button>
-                        </div>
-                      </div>
-                      <div class="text-slate-400 text-[9px]"><i class="fa-regular fa-calendar"></i> ${r.startDate} ~ ${r.endDate}</div>
-                    </div>
-                  `).join('')}
-                </div>
-              </div>
-            `;
-          } else {
-            rentalsHtml = `
-              <div class="mt-2 pt-2 border-t border-slate-100 text-[10px] text-slate-400 text-center">
-                대여중인 사용자 없음
-              </div>
-            `;
-          }
-        }
-
-        const card = document.createElement('div');
-        card.className = "bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:shadow-md transition text-xs sm:text-sm";
-        
-        card.innerHTML = `
-          <div class="relative h-36 sm:h-44 bg-slate-100">
-            <img src="${photoSrc}" class="w-full h-full object-cover" alt="${item.name}">
-            ${item.isNotice ? `
-              <span class="absolute top-2 left-2 px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-500 text-white shadow-sm flex items-center gap-1">
-                <i class="fa-solid fa-bullhorn"></i> 공지
-              </span>
-            ` : ''}
-            <span class="absolute top-2 right-2 px-2 py-0.5 text-[10px] sm:text-xs font-bold rounded-full shadow-sm ${
-              availableQty > 0 ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'
-            }">
-              ${availableQty > 0 ? `가능 (${availableQty}/${item.qty})` : '불가'}
-            </span>
-          </div>
-          <div class="p-3 sm:p-4 flex-grow flex flex-col justify-between space-y-2">
-            <div>
-              <div class="text-[10px] font-semibold text-indigo-600 mb-0.5">${item.code || 'MAT-000'}</div>
-              <h3 class="text-sm sm:text-base font-bold text-slate-800 line-clamp-1">${item.name}</h3>
-              <p class="text-[11px] sm:text-xs text-slate-500 mt-1 line-clamp-2">${item.description || '설명 없음'}</p>
-              <p class="text-[10px] sm:text-xs text-slate-400 mt-1"><i class="fa-solid fa-location-dot mr-1"></i>${item.location}</p>
-              
-              <!-- 관리자 모드 시 대여자 목록 출력 -->
-              ${rentalsHtml}
-            </div>
-
-            <div class="pt-2 border-t flex justify-between items-center gap-1">
-              ${
-                currentRole === 'admin' ? `
-                  <button onclick="openEditModal('${item.id}')" class="flex-1 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition">수정</button>
-                  <button onclick="deleteItem('${item.id}')" class="flex-1 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-semibold rounded-lg transition">삭제</button>
-                ` : `
-                  <button onclick="openRentalModal('${item.id}')" ${availableQty <= 0 ? 'disabled' : ''} class="w-full py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white text-xs font-bold rounded-xl transition shadow-sm">
-                    ${availableQty > 0 ? '대여' : '품절'}
-                  </button>
-                `
-              }
-            </div>
-          </div>
-        `;
-        grid.appendChild(card);
-      });
-    }
-
-    // 1번 요구사항: 입금 여부 전환 (관리자 기능)
-    async function togglePayment(docId, rentalId, newPaidStatus) {
-      try {
-        const itemRef = db.collection("inventory").doc(docId);
-        const doc = await itemRef.get();
-        if (!doc.exists) return;
-
-        const rentals = doc.data().rentals || [];
-        const updatedRentals = rentals.map(r => {
-          if (r.rentalId === rentalId) {
-            return { ...r, isPaid: newPaidStatus };
-          }
-          return r;
-        });
-
-        await itemRef.update({ rentals: updatedRentals });
-      } catch (error) {
-        alert("입금 상태 변경 실패: " + error.message);
-      }
-    }
-
-    // 1번 요구사항: 대여자 삭제 (관리자 기능)
-    async function deleteRental(docId, rentalId) {
-      if (!confirm("이 대여 기록을 삭제하시겠습니까?")) return;
-
-      try {
-        const itemRef = db.collection("inventory").doc(docId);
-        const doc = await itemRef.get();
-        if (!doc.exists) return;
-
-        const rentals = doc.data().rentals || [];
-        const updatedRentals = rentals.filter(r => r.rentalId !== rentalId);
-
-        await itemRef.update({ rentals: updatedRentals });
-        alert("대여 기록이 삭제되었습니다.");
-      } catch (error) {
-        alert("삭제 실패: " + error.message);
-      }
-    }
-
-    // 모달 관리
-    function openAddModal() {
-      document.getElementById('editDocId').value = '';
-      document.getElementById('itemName').value = '';
-      document.getElementById('itemDescription').value = '';
-      document.getElementById('itemLocation').value = '';
-      document.getElementById('itemQty').value = '';
-      document.getElementById('itemBase64Photo').value = '';
-      document.getElementById('itemPhotoFile').value = '';
-      document.getElementById('itemIsNotice').checked = false;
-      document.getElementById('imgPreview').classList.add('hidden');
-      document.getElementById('modalTitle').innerText = '신규 자재 등록';
-      document.getElementById('itemModal').classList.remove('hidden');
-    }
-
-    function openEditModal(docId) {
-      const item = inventoryData.find(i => i.id === docId);
-      if (!item) return;
-
-      document.getElementById('editDocId').value = item.id;
-      document.getElementById('itemName').value = item.name;
-      document.getElementById('itemDescription').value = item.description || '';
-      document.getElementById('itemLocation').value = item.location;
-      document.getElementById('itemQty').value = item.qty;
-      document.getElementById('itemBase64Photo').value = item.photo || '';
-      document.getElementById('itemPhotoFile').value = '';
-      document.getElementById('itemIsNotice').checked = !!item.isNotice;
-
-      const previewImg = document.getElementById('imgPreview');
-      if (item.photo) {
-        previewImg.src = item.photo;
-        previewImg.classList.remove('hidden');
-      } else {
-        previewImg.classList.add('hidden');
-      }
-
-      document.getElementById('modalTitle').innerText = '자재 정보 수정';
-      document.getElementById('itemModal').classList.remove('hidden');
-    }
-
-    function closeModal(modalId) {
-      document.getElementById(modalId).classList.add('hidden');
-    }
-
-    // 자재 추가/수정 제출
-    async function handleItemSubmit(e) {
-      e.preventDefault();
-      const saveBtn = document.getElementById('btnSaveItem');
-      saveBtn.disabled = true;
-      saveBtn.innerText = "저장 중...";
-
-      try {
-        const docId = document.getElementById('editDocId').value;
-        const photoData = document.getElementById('itemBase64Photo').value;
-
-        const itemPayload = {
-          name: document.getElementById('itemName').value,
-          description: document.getElementById('itemDescription').value,
-          location: document.getElementById('itemLocation').value,
-          qty: parseInt(document.getElementById('itemQty').value),
-          isNotice: document.getElementById('itemIsNotice').checked,
-          photo: photoData || ''
-        };
-
-        if (docId) {
-          await db.collection("inventory").doc(docId).update(itemPayload);
+        if (isAdmin) {
+            roleBadge.textContent = "관리자";
+            roleBadge.classList.add("admin");
+            renderAdminRentalView();
         } else {
-          itemPayload.code = "MAT-" + Math.floor(1000 + Math.random() * 9000);
-          itemPayload.rentals = [];
-          itemPayload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-          await db.collection("inventory").add(itemPayload);
+            roleBadge.textContent = "일반 사용자";
+            roleBadge.classList.remove("admin");
+            renderUserRentalView();
         }
 
-        alert("저장되었습니다.");
-        closeModal('itemModal');
-      } catch (error) {
-        alert("저장 중 오류 발생: " + error.message);
-      } finally {
-        saveBtn.disabled = false;
-        saveBtn.innerText = "저장";
-      }
+        renderInventoryView();
     }
 
-    // 자재 삭제
-    async function deleteItem(docId) {
-      if (confirm("정말로 이 자재를 삭제하시겠습니까?")) {
-        try {
-          await db.collection("inventory").doc(docId).delete();
-          alert("삭제되었습니다.");
-        } catch (error) {
-          alert("삭제 실패: " + error.message);
-        }
-      }
+    // 재고 목록 출력
+    function renderInventoryView() {
+        const tbody = document.getElementById("inventory-list");
+        tbody.innerHTML = inventoryData.map(item => `
+            <tr>
+                <td>${item.category}</td>
+                <td><strong>${item.name}</strong></td>
+                <td>${item.totalQty}</td>
+                <td>
+                    <span class="status ${item.availableQty > 0 ? 'active' : 'out-of-stock'}">
+                        ${item.availableQty}대 가능
+                    </span>
+                </td>
+                <td>
+                    ${item.availableQty > 0 
+                        ? `<button class="btn-sm" onclick="requestRental(${item.id})">대여 신청</button>`
+                        : `<button class="btn-sm btn-secondary" disabled>품절</button>`}
+                </td>
+            </tr>
+        `).join('');
     }
 
-    // 대여 모달 열기
-    function openRentalModal(docId) {
-      const item = inventoryData.find(i => i.id === docId);
-      if (!item) return;
+    // 신규 재고 등록 (관리자)
+    document.getElementById("add-inventory-form").addEventListener("submit", (e) => {
+        e.preventDefault();
+        const name = document.getElementById("item-name").value;
+        const category = document.getElementById("item-category").value;
+        const qty = parseInt(document.getElementById("item-qty").value);
 
-      const rentals = item.rentals || [];
-      const activeRentals = rentals.filter(r => r.status === 'active');
-      const rentedQty = activeRentals.reduce((sum, r) => sum + r.qty, 0);
-      const availableQty = item.qty - rentedQty;
+        const newItem = {
+            id: Date.now(),
+            category: category,
+            name: name,
+            totalQty: qty,
+            availableQty: qty
+        };
 
-      document.getElementById('rentalDocId').value = item.id;
-      document.getElementById('rentalItemName').value = item.name;
-      document.getElementById('maxRentQty').innerText = availableQty;
+        inventoryData.push(newItem);
+        renderInventoryView();
 
-      const qtyInput = document.getElementById('rentalQty');
-      qtyInput.max = availableQty;
-      qtyInput.value = 1;
+        // 폼 초기화
+        e.target.reset();
+    });
 
-      datePickerInstance.clear();
-      document.getElementById('rentalModal').classList.remove('hidden');
-    }
-
-    // 대여 제출 (오류 수정 로직 적용)
-    async function handleRentalSubmit(e) {
-      e.preventDefault();
-      if (!currentUser) return alert("로그인이 필요합니다.");
-
-      const docId = document.getElementById('rentalDocId').value;
-      const rentQty = parseInt(document.getElementById('rentalQty').value);
-
-      const selectedDates = datePickerInstance.selectedDates;
-      if (!selectedDates || selectedDates.length < 2) {
-        return alert("대여 시작일과 종료일을 정확히 지정해 주세요.");
-      }
-
-      const formatDate = (date) => {
-        const y = date.getFullYear();
-        const m = String(date.getMonth() + 1).padStart(2, '0');
-        const d = String(date.getDate()).padStart(2, '0');
-        return `${y}-${m}-${d}`;
-      };
-
-      const startDate = formatDate(selectedDates[0]);
-      const endDate = formatDate(selectedDates[1]);
-
-      const item = inventoryData.find(i => i.id === docId);
-      if (!item) return;
-
-      const rentals = item.rentals || [];
-      const activeRentals = rentals.filter(r => r.status === 'active');
-      const rentedQty = activeRentals.reduce((sum, r) => sum + r.qty, 0);
-      const availableQty = item.qty - rentedQty;
-
-      if (rentQty > availableQty) {
-        return alert("신청 수량이 대여 가능한 수량을 초과합니다.");
-      }
-
-      const newRental = {
-        rentalId: "RNT-" + Date.now(),
-        userId: currentUser.uid,
-        userName: currentUser.displayName || currentUser.email,
-        userEmail: currentUser.email,
-        qty: rentQty,
-        startDate: startDate,
-        endDate: endDate,
-        status: 'active',
-        isPaid: false, // 기본 미입금 상태
-        createdAt: new Date().toISOString()
-      };
-
-      try {
-        await db.collection("inventory").doc(docId).update({
-          rentals: firebase.firestore.FieldValue.arrayUnion(newRental)
-        });
-        alert("대여 신청이 완료되었습니다.");
-        closeModal('rentalModal');
-      } catch (error) {
-        alert("대여 신청 오류: " + error.message);
-      }
-    }
-
-    // 2번 요구사항 반영: 나의 대여 현황 테이블에 [미입금] / [입금완료] 표시
-    function renderUserRentals() {
-      const rentalList = document.getElementById('userRentalList');
-      rentalList.innerHTML = '';
-
-      if (!currentUser) return;
-
-      let myRentalsCount = 0;
-
-      inventoryData.forEach(item => {
-        const rentals = item.rentals || [];
-        rentals.forEach(r => {
-          if (r.userId === currentUser.uid) {
-            myRentalsCount++;
-            const tr = document.createElement('tr');
-            tr.className = "hover:bg-slate-50 transition";
+    // 대여 신청
+    function requestRental(inventoryId) {
+        const item = inventoryData.find(i => i.id === inventoryId);
+        if (item && item.availableQty > 0) {
+            item.availableQty--;
             
-            tr.innerHTML = `
-              <td class="px-4 py-3 font-semibold text-slate-800">${item.name}</td>
-              <td class="px-4 py-3">${r.qty}개</td>
-              <td class="px-4 py-3 text-xs text-slate-500">${r.startDate} ~ ${r.endDate}</td>
-              <td class="px-4 py-3">
-                <span class="px-2 py-0.5 rounded-full text-xs font-semibold ${
-                  r.isPaid ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
-                }">
-                  ${r.isPaid ? '입금완료' : '미입금'}
-                </span>
-              </td>
-              <td class="px-4 py-3">
-                <span class="px-2 py-0.5 rounded-full text-xs font-semibold ${
-                  r.status === 'active' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'
-                }">
-                  ${r.status === 'active' ? '대여 중' : '반납 완료'}
-                </span>
-              </td>
-              <td class="px-4 py-3 text-right">
-                ${r.status === 'active' ? `
-                  <button onclick="returnRental('${item.id}', '${r.rentalId}')" class="px-3 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-xs font-semibold rounded-md transition">
-                    반납하기
-                  </button>
-                ` : '-'}
-              </td>
-            `;
-            rentalList.appendChild(tr);
-          }
-        });
-      });
+            const today = new Date().toISOString().split('T')[0];
+            rentalData.push({
+                id: Date.now(),
+                user: currentUser,
+                itemId: item.id,
+                item: item.name,
+                date: today,
+                status: "대여 중"
+            });
 
-      if (myRentalsCount === 0) {
-        rentalList.innerHTML = `<tr><td colspan="6" class="px-4 py-6 text-center text-slate-400">현재 대여 중인 자재가 없습니다.</td></tr>`;
-      }
-    }
-
-    // 반납 처리
-    async function returnRental(docId, rentalId) {
-      if (!confirm("해당 자재를 반납하시겠습니까?")) return;
-
-      try {
-        const itemRef = db.collection("inventory").doc(docId);
-        const doc = await itemRef.get();
-        if (!doc.exists) return;
-
-        const rentals = doc.data().rentals || [];
-        const updatedRentals = rentals.map(r => {
-          if (r.rentalId === rentalId) {
-            return { ...r, status: 'returned' };
-          }
-          return r;
-        });
-
-        await itemRef.update({ rentals: updatedRentals });
-        alert("반납이 완료되었습니다.");
-      } catch (error) {
-        alert("반납 실패: " + error.message);
-      }
-    }
-
-    // 공지사항 팝업
-    function checkAndShowNoticePopup() {
-      const notices = inventoryData.filter(item => item.isNotice);
-      if (notices.length === 0) return;
-
-      currentNotice = notices[0];
-
-      const hideNoticeUntil = localStorage.getItem('hideNoticeUntil_' + currentNotice.id);
-      if (hideNoticeUntil) {
-        const now = new Date().getTime();
-        if (now < parseInt(hideNoticeUntil)) {
-          return;
+            renderInventoryView();
+            if (currentUser === ADMIN_EMAIL) {
+                renderAdminRentalView();
+            } else {
+                renderUserRentalView();
+            }
+            alert(`'${item.name}' 대여 신청이 완료되었습니다.`);
         }
-      }
-
-      document.getElementById('noticeTitle').innerText = currentNotice.name;
-      document.getElementById('noticeContent').innerText = currentNotice.description || "내용이 없습니다.";
-
-      const imgContainer = document.getElementById('noticeImgContainer');
-      const imgElem = document.getElementById('noticeImg');
-
-      if (currentNotice.photo) {
-        imgElem.src = currentNotice.photo;
-        imgContainer.classList.remove('hidden');
-      } else {
-        imgContainer.classList.add('hidden');
-      }
-
-      document.getElementById('noticeModal').classList.remove('hidden');
     }
 
-    function closeNoticeModal() {
-      const isWeekChecked = document.getElementById('chkHideWeek').checked;
-      
-      if (isWeekChecked && currentNotice) {
-        const expireTime = new Date().getTime() + (7 * 24 * 60 * 60 * 1000);
-        localStorage.setItem('hideNoticeUntil_' + currentNotice.id, expireTime.toString());
-      }
+    // 일반 사용자 뷰: '나의 대여 현황'
+    function renderUserRentalView() {
+        document.getElementById("table-title").textContent = "나의 대여 현황";
+        
+        const header = document.getElementById("table-header");
+        header.innerHTML = `
+            <th>대여 물품</th>
+            <th>대여 일자</th>
+            <th>상태</th>
+        `;
 
-      document.getElementById('noticeModal').classList.add('hidden');
+        const userRentals = rentalData.filter(item => item.user === currentUser);
+        const tbody = document.getElementById("rental-list");
+        
+        if (userRentals.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="3">대여한 내역이 없습니다.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = userRentals.map(item => `
+            <tr>
+                <td>${item.item}</td>
+                <td>${item.date}</td>
+                <td><span class="status ${item.status === '대여 중' ? 'active' : 'returned'}">${item.status}</span></td>
+            </tr>
+        `).join('');
     }
-  </script>
+
+    // 관리자 뷰: '전체 대여 현황'
+    function renderAdminRentalView() {
+        document.getElementById("table-title").textContent = "전체 대여 현황 (관리자전용)";
+        
+        const header = document.getElementById("table-header");
+        header.innerHTML = `
+            <th>신청자 계정</th>
+            <th>대여 물품</th>
+            <th>대여 일자</th>
+            <th>상태</th>
+            <th>관리</th>
+        `;
+
+        const tbody = document.getElementById("rental-list");
+
+        if (rentalData.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5">등록된 대여 내역이 없습니다.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = rentalData.map(item => `
+            <tr>
+                <td><strong>${item.user}</strong></td>
+                <td>${item.item}</td>
+                <td>${item.date}</td>
+                <td><span class="status ${item.status === '대여 중' ? 'active' : 'returned'}">${item.status}</span></td>
+                <td>
+                    ${item.status === '대여 중' 
+                        ? `<button class="btn-sm" onclick="returnItem(${item.id})">반납 처리</button>` 
+                        : `-`}
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    // 반납 승인/처리 (관리자)
+    function returnItem(rentalId) {
+        const rental = rentalData.find(r => r.id === rentalId);
+        if (rental && rental.status === "대여 중") {
+            rental.status = "반납 완료";
+            
+            // 재고 수량 원복
+            const inventoryItem = inventoryData.find(i => i.id === rental.itemId);
+            if (inventoryItem) {
+                inventoryItem.availableQty++;
+            }
+
+            renderInventoryView();
+            renderAdminRentalView();
+        }
+    }
+</script>
+
 </body>
 </html>
