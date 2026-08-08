@@ -12,6 +12,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col">
 
@@ -155,6 +156,7 @@
 
       <form onsubmit="handleItemSubmit(event)" class="space-y-3">
         <input type="hidden" id="editDocId">
+        <input type="hidden" id="existingPhotoUrl">
         
         <div>
           <label class="block text-xs font-semibold text-slate-600 mb-1">자재 번호 (자동생성)</label>
@@ -167,8 +169,9 @@
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">사진 URL</label>
-          <input type="url" id="itemPhoto" required class="w-full px-3 py-2 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500" placeholder="https://images.unsplash.com/photo-...">
+          <label class="block text-xs font-semibold text-slate-600 mb-1">사진 파일 업로드</label>
+          <input type="file" id="itemPhotoFile" accept="image/*" class="w-full px-3 py-1.5 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+          <p id="currentPhotoText" class="text-xs text-slate-400 mt-1 hidden">기존 이미지가 등록되어 있습니다. 변경 시에만 새로 파일 선택하세요.</p>
         </div>
 
         <div class="grid grid-cols-2 gap-3">
@@ -185,7 +188,9 @@
         <div class="flex gap-2 pt-4">
           <button type="button" id="btnDeleteItem" onclick="deleteItem()" class="hidden py-2.5 px-4 bg-red-100 text-red-600 font-semibold rounded-xl text-sm hover:bg-red-200">삭제</button>
           <button type="button" onclick="closeModal('itemModal')" class="flex-1 py-2.5 bg-slate-100 text-slate-600 font-semibold rounded-xl text-sm hover:bg-slate-200">취소</button>
-          <button type="submit" class="flex-1 py-2.5 bg-emerald-600 text-white font-semibold rounded-xl text-sm hover:bg-emerald-700">저장</button>
+          <button type="submit" id="btnSaveItem" class="flex-1 py-2.5 bg-emerald-600 text-white font-semibold rounded-xl text-sm hover:bg-emerald-700 flex justify-center items-center gap-2">
+            <span>저장</span>
+          </button>
         </div>
       </form>
     </div>
@@ -193,6 +198,13 @@
 
   <!-- Javascript Logic -->
   <script>
+    // ----------------------------------------------------
+    // ★ 관리자 이메일 목록 설정 (본인 구글 이메일 등록) ★
+    // ----------------------------------------------------
+    const ADMIN_EMAILS = [
+      "migosachuk79@gmail.com" // <- 여기에 본인의 구글 이메일을 입력하세요!
+    ];
+
     // ----------------------------------------------------
     // 1. Firebase Configuration (yunsul-edu)
     // ----------------------------------------------------
@@ -212,6 +224,7 @@
     }
     const auth = firebase.auth();
     const db = firebase.firestore();
+    const storage = firebase.storage();
 
     // ----------------------------------------------------
     // 2. Global State
@@ -232,6 +245,7 @@
 
     function handleLogout() {
       auth.signOut();
+      switchRole('user');
     }
 
     auth.onAuthStateChanged(user => {
@@ -252,8 +266,19 @@
       }
     });
 
+    // 관리자 권한 확인 함수
+    function isAdminUser() {
+      if (!currentUser) return false;
+      return ADMIN_EMAILS.includes(currentUser.email);
+    }
+
     // Role Switch
     function switchRole(role) {
+      if (role === 'admin' && !isAdminUser()) {
+        alert("관리자 권한이 등록된 계정이 아닙니다.\nADMIN_EMAILS 설정된 구글 계정으로 로그인해 주세요.");
+        return;
+      }
+
       currentRole = role;
       const btnUser = document.getElementById('btnRoleUser');
       const btnAdmin = document.getElementById('btnRoleAdmin');
@@ -330,7 +355,7 @@
 
         card.innerHTML = `
           <div class="relative h-44 bg-slate-100 cursor-pointer overflow-hidden group" ${imageClickAttr}>
-            <img src="${item.photo}" alt="${item.name}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" onerror="this.src='https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=500'">
+            <img src="${item.photo || 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=500'}" alt="${item.name}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" onerror="this.src='https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=500'">
             <span class="absolute top-3 left-3 bg-slate-900/70 backdrop-blur-md text-white text-[11px] font-mono px-2 py-1 rounded-md">${item.code}</span>
           </div>
 
@@ -463,9 +488,11 @@
     function openAddModal() {
       document.getElementById('itemModalTitle').textContent = "신규 자재 등록";
       document.getElementById('editDocId').value = "";
+      document.getElementById('existingPhotoUrl').value = "";
       document.getElementById('itemCode').value = "MAT-" + Math.floor(1000 + Math.random() * 9000);
       document.getElementById('itemName').value = "";
-      document.getElementById('itemPhoto').value = "";
+      document.getElementById('itemPhotoFile').value = "";
+      document.getElementById('currentPhotoText').classList.add('hidden');
       document.getElementById('itemLocation').value = "";
       document.getElementById('itemQty').value = "10";
       document.getElementById('btnDeleteItem').classList.add('hidden');
@@ -479,9 +506,11 @@
 
       document.getElementById('itemModalTitle').textContent = "자재 내용 수정";
       document.getElementById('editDocId').value = docId;
+      document.getElementById('existingPhotoUrl').value = item.photo || "";
       document.getElementById('itemCode').value = item.code;
-      document.getElementById('itemName').value = item.photo ? item.name : '';
-      document.getElementById('itemPhoto').value = item.photo;
+      document.getElementById('itemName').value = item.name;
+      document.getElementById('itemPhotoFile').value = "";
+      document.getElementById('currentPhotoText').classList.remove('hidden');
       document.getElementById('itemLocation').value = item.location;
       document.getElementById('itemQty').value = item.qty;
       document.getElementById('btnDeleteItem').classList.remove('hidden');
@@ -489,22 +518,45 @@
       document.getElementById('itemModal').classList.remove('hidden');
     }
 
-    function handleItemSubmit(e) {
+    async function handleItemSubmit(e) {
       e.preventDefault();
-      const docId = document.getElementById('editDocId').value;
-      const data = {
-        code: document.getElementById('itemCode').value,
-        name: document.getElementById('itemName').value,
-        photo: document.getElementById('itemPhoto').value,
-        location: document.getElementById('itemLocation').value,
-        qty: parseInt(document.getElementById('itemQty').value)
-      };
+      const saveBtn = document.getElementById('btnSaveItem');
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> 저장 중...`;
 
-      if (docId) {
-        db.collection("inventory").doc(docId).update(data).then(() => closeModal('itemModal'));
-      } else {
-        data.rentals = [];
-        db.collection("inventory").add(data).then(() => closeModal('itemModal'));
+      try {
+        const docId = document.getElementById('editDocId').value;
+        const fileInput = document.getElementById('itemPhotoFile');
+        let photoUrl = document.getElementById('existingPhotoUrl').value;
+
+        // 신규 업로드 파일이 있는 경우 Firebase Storage에 저장
+        if (fileInput.files.length > 0) {
+          const file = fileInput.files[0];
+          const storageRef = storage.ref(`inventory/${Date.now()}_${file.name}`);
+          const snapshot = await storageRef.put(file);
+          photoUrl = await snapshot.ref.getDownloadURL();
+        }
+
+        const data = {
+          code: document.getElementById('itemCode').value,
+          name: document.getElementById('itemName').value,
+          photo: photoUrl,
+          location: document.getElementById('itemLocation').value,
+          qty: parseInt(document.getElementById('itemQty').value)
+        };
+
+        if (docId) {
+          await db.collection("inventory").doc(docId).update(data);
+        } else {
+          data.rentals = [];
+          await db.collection("inventory").add(data);
+        }
+        closeModal('itemModal');
+      } catch (err) {
+        alert("저장 중 오류가 발생했습니다: " + err.message);
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = `<span>저장</span>`;
       }
     }
 
