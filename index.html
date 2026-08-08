@@ -86,6 +86,7 @@
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
           <i class="fa-solid fa-boxes-packing text-indigo-600"></i> 자재 및 재고 목록
+          <span class="text-xs font-normal text-slate-400 ml-1">(가나다순)</span>
         </h2>
         <span id="itemCount" class="text-xs text-slate-500 bg-slate-200 px-2 py-1 rounded-full">총 0건</span>
       </div>
@@ -108,7 +109,7 @@
               <th class="py-3 px-4 rounded-l-lg">자재명</th>
               <th class="py-3 px-4">대여수량</th>
               <th class="py-3 px-4">대여기간</th>
-              <th class="py-3 px-4 rounded-r-lg">입금상태</th>
+              <th class="py-3 px-4 rounded-r-lg">입금상태 / 대여 관리</th>
             </tr>
           </thead>
           <tbody id="userRentalList" class="divide-y divide-slate-100">
@@ -120,6 +121,27 @@
       </div>
     </section>
   </main>
+
+  <!-- MODAL: Notice Popup (공지사항 팝업) -->
+  <div id="noticeModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 border border-slate-100 relative overflow-hidden max-h-[90vh] flex flex-col">
+      <div class="flex justify-between items-center pb-3 border-b border-slate-100 mb-4">
+        <h3 class="text-lg font-bold text-indigo-600 flex items-center gap-2">
+          <i class="fa-solid fa-bullhorn text-amber-500"></i> 주요 공지사항
+        </h3>
+        <button onclick="closeModal('noticeModal')" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+      </div>
+
+      <!-- Notice Cards Container -->
+      <div id="noticeContainer" class="space-y-4 overflow-y-auto pr-1">
+        <!-- Dynamic Notice Items -->
+      </div>
+
+      <div class="mt-5 pt-3 border-t border-slate-100 flex justify-end">
+        <button onclick="closeModal('noticeModal')" class="px-5 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition">확인 및 닫기</button>
+      </div>
+    </div>
+  </div>
 
   <!-- MODAL 1: Rent Modal (대여 신청) -->
   <div id="rentModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
@@ -195,6 +217,14 @@
           </div>
         </div>
 
+        <!-- 공지사항 체크박스 -->
+        <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="itemIsNotice" class="w-4 h-4 text-amber-600 rounded focus:ring-amber-500">
+            <span class="text-xs font-bold text-amber-900">공지사항으로 등록 (사용자 로그인 시 팝업 노출)</span>
+          </label>
+        </div>
+
         <div class="flex gap-2 pt-4">
           <button type="button" id="btnDeleteItem" onclick="deleteItem()" class="hidden py-2.5 px-4 bg-red-100 text-red-600 font-semibold rounded-xl text-sm hover:bg-red-200">삭제</button>
           <button type="button" onclick="closeModal('itemModal')" class="flex-1 py-2.5 bg-slate-100 text-slate-600 font-semibold rounded-xl text-sm hover:bg-slate-200">취소</button>
@@ -243,8 +273,9 @@
     let currentUser = null;
     let inventoryItems = [];
     let calendarPicker = null;
+    let noticePopupShown = false; // 세션 내 팝업 노출 여부
 
-    // 페이지 로드 시 캘린더 피커 초기화 (한국어, 범위 선택 모드)
+    // 페이지 로드 시 캘린더 피커 초기화
     document.addEventListener("DOMContentLoaded", () => {
       calendarPicker = flatpickr("#rentPeriod", {
         mode: "range",
@@ -267,6 +298,7 @@
 
     function handleLogout() {
       auth.signOut();
+      noticePopupShown = false;
       switchRole('user');
     }
 
@@ -331,9 +363,38 @@
         snapshot.forEach(doc => {
           inventoryItems.push({ id: doc.id, ...doc.data() });
         });
+
+        // 1. 자재목록 가나다순 정렬
+        inventoryItems.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ko'));
+
         renderInventory();
         renderUserRentals();
+        checkAndShowNoticePopup();
       });
+    }
+
+    // 공지사항 팝업 노출 체크
+    function checkAndShowNoticePopup() {
+      if (noticePopupShown || !currentUser) return;
+
+      const notices = inventoryItems.filter(item => item.isNotice);
+      if (notices.length === 0) return;
+
+      const container = document.getElementById('noticeContainer');
+      container.innerHTML = notices.map(item => `
+        <div class="border border-amber-200 bg-amber-50/50 rounded-xl p-3 flex flex-col sm:flex-row gap-3 items-center">
+          ${item.photo ? `<img src="${item.photo}" class="w-24 h-24 object-cover rounded-lg border border-amber-200 flex-shrink-0" alt="${item.name}">` : ''}
+          <div class="flex-1 text-left">
+            <span class="inline-block px-2 py-0.5 bg-amber-200 text-amber-900 font-bold text-[10px] rounded mb-1">ANNOUNCEMENT</span>
+            <h4 class="font-bold text-slate-800 text-base mb-1">${item.name}</h4>
+            <p class="text-xs text-slate-600"><i class="fa-solid fa-location-dot text-rose-400 mr-1"></i>위치: ${item.location}</p>
+            <p class="text-xs text-slate-600"><i class="fa-solid fa-boxes-stacked text-indigo-500 mr-1"></i>현재 남은 재고: ${item.qty}개</p>
+          </div>
+        </div>
+      `).join('');
+
+      noticePopupShown = true;
+      document.getElementById('noticeModal').classList.remove('hidden');
     }
 
     function renderInventory() {
@@ -349,10 +410,11 @@
 
       inventoryItems.forEach(item => {
         const card = document.createElement('div');
-        card.className = "bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:shadow-md transition";
+        card.className = "bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:shadow-md transition relative";
         
         const imageClickAttr = (currentRole === 'admin') ? `onclick="openEditModal('${item.id}')"` : '';
 
+        // 2. 관리자 모드 대여 현황 및 삭제 버튼
         let rentalsHTML = '';
         if (currentRole === 'admin' && item.rentals && item.rentals.length > 0) {
           rentalsHTML = `
@@ -360,11 +422,17 @@
               <span class="text-xs font-bold text-slate-500">대여 현황</span>
               ${item.rentals.map((r, idx) => `
                 <div class="bg-slate-50 p-2.5 rounded-lg text-xs space-y-1">
-                  <div class="flex justify-between font-semibold text-slate-700">
+                  <div class="flex justify-between items-center font-semibold text-slate-700">
                     <span><i class="fa-regular fa-user mr-1"></i>${r.borrower}</span>
-                    <button onclick="togglePayment('${item.id}', ${idx})" class="px-2 py-0.5 rounded text-[10px] font-bold ${r.paid ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700 hover:bg-rose-200'}">
-                      ${r.paid ? '입금 완료' : '미입금'}
-                    </button>
+                    <div class="flex items-center gap-1">
+                      <button onclick="togglePayment('${item.id}', ${idx})" class="px-2 py-0.5 rounded text-[10px] font-bold ${r.paid ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700 hover:bg-rose-200'}">
+                        ${r.paid ? '입금 완료' : '미입금'}
+                      </button>
+                      <!-- 대여 현황 삭제 버튼 -->
+                      <button onclick="deleteRental('${item.id}', ${idx})" class="text-rose-500 hover:text-rose-700 p-1 text-xs" title="대여 내역 삭제">
+                        <i class="fa-solid fa-trash-can"></i>
+                      </button>
+                    </div>
                   </div>
                   <div class="text-slate-500"><i class="fa-regular fa-calendar-check mr-1"></i>${r.period} (수량: ${r.qty}개)</div>
                 </div>
@@ -377,6 +445,7 @@
           <div class="relative h-44 bg-slate-100 cursor-pointer overflow-hidden group" ${imageClickAttr}>
             <img src="${item.photo || 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=500'}" alt="${item.name}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" onerror="this.src='https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=500'">
             <span class="absolute top-3 left-3 bg-slate-900/70 backdrop-blur-md text-white text-[11px] font-mono px-2 py-1 rounded-md">${item.code}</span>
+            ${item.isNotice ? `<span class="absolute top-3 right-3 bg-amber-500 text-white text-[10px] font-bold px-2 py-1 rounded-md shadow-sm"><i class="fa-solid fa-bullhorn mr-1"></i>공지</span>` : ''}
           </div>
 
           <div class="p-4 flex-1 flex flex-col justify-between">
@@ -405,6 +474,7 @@
       });
     }
 
+    // 3. 사용자 페이지: 나의 대여 현황 & 미입금 대여 취소 버튼
     function renderUserRentals() {
       const tbody = document.getElementById('userRentalList');
       if (!currentUser) return;
@@ -412,9 +482,11 @@
       let myRentals = [];
       inventoryItems.forEach(item => {
         if (item.rentals) {
-          item.rentals.forEach(r => {
+          item.rentals.forEach((r, idx) => {
             if (r.userId === currentUser.uid || r.borrower === (currentUser.displayName || currentUser.email)) {
               myRentals.push({
+                itemId: item.id,
+                rentalIndex: idx,
                 itemName: item.name,
                 qty: r.qty,
                 period: r.period,
@@ -436,17 +508,56 @@
           <td class="py-3 px-4">${r.qty} 개</td>
           <td class="py-3 px-4 text-slate-600">${r.period}</td>
           <td class="py-3 px-4">
-            <span class="px-2.5 py-1 rounded-full text-xs font-bold ${r.paid ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">
-              ${r.paid ? '입금 완료' : '미입금'}
-            </span>
+            <div class="flex items-center gap-2">
+              <span class="px-2.5 py-1 rounded-full text-xs font-bold ${r.paid ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">
+                ${r.paid ? '입금 완료' : '미입금'}
+              </span>
+              ${!r.paid ? `<button onclick="cancelUserRental('${r.itemId}', ${r.rentalIndex})" class="px-2.5 py-1 bg-rose-100 hover:bg-rose-200 text-rose-600 rounded-lg text-xs font-bold transition flex items-center gap-1">
+                <i class="fa-solid fa-xmark"></i> 대여 취소
+              </button>` : ''}
+            </div>
           </td>
         </tr>
       `).join('');
     }
 
     // ----------------------------------------------------
-    // 5. Actions (Rent, Toggle, Add, Edit)
+    // 5. Actions (Rent, Toggle, Delete Rental, Add, Edit)
     // ----------------------------------------------------
+    // 사용자 대여 취소 함수
+    function cancelUserRental(itemId, rentalIndex) {
+      if (!confirm("대여 신청을 취소하시겠습니까? (취소 시 재고가 복구됩니다)")) return;
+
+      const item = inventoryItems.find(i => i.id === itemId);
+      if (!item || !item.rentals) return;
+
+      const restoredQty = item.rentals[rentalIndex].qty || 0;
+      item.rentals.splice(rentalIndex, 1);
+
+      db.collection("inventory").doc(itemId).update({
+        qty: (item.qty || 0) + restoredQty,
+        rentals: item.rentals
+      }).then(() => {
+        alert("대여 신청이 성공적으로 취소되었습니다.");
+      });
+    }
+
+    // 관리자 대여 내역 삭제 함수
+    function deleteRental(docId, rentalIndex) {
+      if (!confirm("해당 대여 내역을 삭제하시겠습니까? (대여했던 수량이 재고로 복구됩니다.)")) return;
+
+      const item = inventoryItems.find(i => i.id === docId);
+      if (!item || !item.rentals) return;
+
+      const restoredQty = item.rentals[rentalIndex].qty || 0;
+      item.rentals.splice(rentalIndex, 1);
+
+      db.collection("inventory").doc(docId).update({
+        qty: (item.qty || 0) + restoredQty,
+        rentals: item.rentals
+      });
+    }
+
     function openRentModal(docId) {
       document.getElementById('rentItemId').value = docId;
       const borrowerField = document.getElementById('adminBorrowerField');
@@ -457,7 +568,6 @@
         borrowerField.classList.add('hidden');
       }
 
-      // 캘린더 필드 리셋
       if (calendarPicker) {
         calendarPicker.clear();
       }
@@ -525,6 +635,7 @@
       document.getElementById('currentPhotoText').classList.add('hidden');
       document.getElementById('itemLocation').value = "";
       document.getElementById('itemQty').value = "10";
+      document.getElementById('itemIsNotice').checked = false;
       document.getElementById('btnDeleteItem').classList.add('hidden');
       
       document.getElementById('itemModal').classList.remove('hidden');
@@ -543,6 +654,7 @@
       document.getElementById('currentPhotoText').classList.remove('hidden');
       document.getElementById('itemLocation').value = item.location;
       document.getElementById('itemQty').value = item.qty;
+      document.getElementById('itemIsNotice').checked = !!item.isNotice;
       document.getElementById('btnDeleteItem').classList.remove('hidden');
 
       document.getElementById('itemModal').classList.remove('hidden');
@@ -559,7 +671,6 @@
         const fileInput = document.getElementById('itemPhotoFile');
         let photoUrl = document.getElementById('existingPhotoUrl').value;
 
-        // 신규 파일 업로드
         if (fileInput.files.length > 0) {
           const file = fileInput.files[0];
           const storageRef = storage.ref(`inventory/${Date.now()}_${file.name}`);
@@ -572,7 +683,8 @@
           name: document.getElementById('itemName').value,
           photo: photoUrl,
           location: document.getElementById('itemLocation').value,
-          qty: parseInt(document.getElementById('itemQty').value)
+          qty: parseInt(document.getElementById('itemQty').value),
+          isNotice: document.getElementById('itemIsNotice').checked
         };
 
         if (docId) {
