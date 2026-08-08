@@ -253,6 +253,7 @@
 </div>
 
 <script>
+    // 관리자 지정
     const ADMIN_EMAIL = "migosachuk79@gmail.com";
 
     // 보유 재고 데이터
@@ -372,7 +373,6 @@
         inventoryData.push(newItem);
         renderInventoryView();
 
-        // 폼 초기화
         e.target.reset();
     });
 
@@ -471,7 +471,6 @@
         if (rental && rental.status === "대여 중") {
             rental.status = "반납 완료";
             
-            // 재고 수량 원복
             const inventoryItem = inventoryData.find(i => i.id === rental.itemId);
             if (inventoryItem) {
                 inventoryItem.availableQty++;
